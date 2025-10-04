@@ -6,6 +6,12 @@ http {
     # DNS resolver - Cloudflare, ipv6=off критично для Railway
     resolver 1.1.1.1 1.0.0.1 valid=1s ipv6=off;
     resolver_timeout 5s;
+
+    upstream posthog {
+        server ${POSTHOG_HOST}:443;
+        keepalive 32;
+    }
+    
     
     server {
         listen ${PORT};
@@ -45,9 +51,6 @@ http {
         
         # Main API endpoints
         location / {
-            # Force IPv4 resolution
-            proxy_bind 0.0.0.0;
-
             proxy_pass https://${POSTHOG_CLOUD_REGION}.i.posthog.com;
             proxy_set_header Host "${POSTHOG_CLOUD_REGION}.i.posthog.com";
             proxy_ssl_server_name on;
