@@ -1,0 +1,34 @@
+worker_processes auto;
+
+events { worker_connections 1024; }
+
+http {
+    sendfile on;
+
+    # DNS resolver with 1 second TTL for semi-dynamic DNS resolution.
+    # 1s is the shortest time you can set for a TTL, because 0s is equivalent to unset.
+    # ipv6=off ensures we only use IPv4 for upstream connections because Railway doesn't support outbound IPv6.
+    resolver 8.8.8.8 8.8.4.4 valid=1s ipv6=off;
+
+    server {
+        keepalive_timeout   70;
+
+        server_name ${SERVER_NAME};
+
+        listen ${PORT};
+
+        # Variable for upstream URL to enable semi-dynamic DNS resolution.
+        set $upstream_url https://${POSTHOG_HOST};
+
+        location / {
+            proxy_set_header      X-Real-IP                     $remote_addr;
+            proxy_set_header      X-Forwarded-For               $proxy_add_x_forwarded_for;
+            proxy_set_header      X-Forwarded-Host              $server_name;
+            proxy_set_header      X-Forwarded-Proto             $scheme;
+            proxy_set_header      Host                          ${POSTHOG_HOST};
+            proxy_redirect        off;
+            proxy_ssl_server_name on;
+            proxy_pass            $upstream_url;
+        }
+    }
+}
