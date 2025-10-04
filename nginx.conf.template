@@ -45,6 +45,9 @@ http {
         
         # Main API endpoints
         location / {
+            # Force IPv4 resolution
+            proxy_bind 0.0.0.0;
+
             proxy_pass https://${POSTHOG_CLOUD_REGION}.i.posthog.com;
             proxy_set_header Host "${POSTHOG_CLOUD_REGION}.i.posthog.com";
             proxy_ssl_server_name on;
