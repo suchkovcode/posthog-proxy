@@ -1,34 +1,65 @@
 worker_processes auto;
-
 events { worker_connections 1024; }
-
 http {
     sendfile on;
-
-    # DNS resolver with 1 second TTL for semi-dynamic DNS resolution.
-    # 1s is the shortest time you can set for a TTL, because 0s is equivalent to unset.
-    # ipv6=off ensures we only use IPv4 for upstream connections because Railway doesn't support outbound IPv6.
-    resolver 8.8.8.8 8.8.4.4 valid=1s ipv6=off;
-
+    
+    # DNS resolver - Cloudflare DNS, ipv6=off критично для Railway
+    resolver 1.1.1.1 1.0.0.1 valid=1s ipv6=off;
+    resolver_timeout 5s;
+    
     server {
-        keepalive_timeout   70;
-
+        keepalive_timeout 70;
         server_name ${SERVER_NAME};
-
         listen ${PORT};
-
+        
         # Variable for upstream URL to enable semi-dynamic DNS resolution.
         set $upstream_url https://${POSTHOG_HOST};
-
+        
+        # Health check endpoint
+        location = /health {
+            access_log off;
+            add_header Content-Type text/plain;
+            return 200 'OK';
+        }
+        
+        # Handle OPTIONS preflight requests
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+            add_header 'Access-Control-Max-Age' 1728000 always;
+            add_header 'Content-Type' 'text/plain; charset=utf-8' always;
+            add_header 'Content-Length' 0 always;
+            return 204;
+        }
+        
         location / {
-            proxy_set_header      X-Real-IP                     $remote_addr;
-            proxy_set_header      X-Forwarded-For               $proxy_add_x_forwarded_for;
-            proxy_set_header      X-Forwarded-Host              $server_name;
-            proxy_set_header      X-Forwarded-Proto             $scheme;
-            proxy_set_header      Host                          ${POSTHOG_HOST};
-            proxy_redirect        off;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $server_name;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Host ${POSTHOG_HOST};
+            
+            proxy_redirect off;
             proxy_ssl_server_name on;
-            proxy_pass            $upstream_url;
+            proxy_pass $upstream_url;
+            
+            # Таймауты
+            proxy_connect_timeout 10s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+            
+            # Убрать upstream CORS заголовки чтобы избежать дубликатов
+            proxy_hide_header 'Access-Control-Allow-Origin';
+            proxy_hide_header 'Access-Control-Allow-Methods';
+            proxy_hide_header 'Access-Control-Allow-Headers';
+            proxy_hide_header 'Access-Control-Expose-Headers';
+            
+            # Добавить свои CORS заголовки
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
         }
     }
 }
