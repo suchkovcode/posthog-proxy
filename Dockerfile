@@ -8,11 +8,12 @@ RUN apt-get install -y gettext-base
 
 ARG SERVER_NAME
 
-ARG PORT
+ARG PORT=8080
+ENV PORT=$PORT
 
-ARG POSTHOG_HOST=app.posthog.com
+ARG POSTHOG_CLOUD_REGION
 
-RUN envsubst '$SERVER_NAME,$PORT,$POSTHOG_HOST' < nginx.conf.template > nginx.conf
+RUN envsubst '$SERVER_NAME,$POSTHOG_CLOUD_REGION,$PORT=8080' < nginx.conf.template > nginx.conf
 
 FROM nginx:latest
 
