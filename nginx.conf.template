@@ -6,12 +6,6 @@ http {
     # DNS resolver - Cloudflare, ipv6=off критично для Railway
     resolver 1.1.1.1 1.0.0.1 valid=1s ipv6=off;
     resolver_timeout 5s;
-
-    upstream posthog {
-        server ${POSTHOG_HOST}:443;
-        keepalive 32;
-    }
-    
     
     server {
         listen ${PORT};
