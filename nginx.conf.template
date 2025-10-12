@@ -10,11 +10,7 @@ http {
     server {
         listen ${PORT};
         server_name ${SERVER_NAME};
-        
-        # Проверка IP для всех location кроме health
-        if ($allowed_ip = 0) {
-            return 403;
-        }
+
         
         # Health check endpoint
         location = /health {
