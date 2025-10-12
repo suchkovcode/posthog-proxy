@@ -3,34 +3,9 @@ events { worker_connections 1024; }
 http {
     sendfile on;
     
-    # Доверяем Railway's private network для X-Forwarded-For
-    set_real_ip_from 100.64.0.0/10;
-    real_ip_header X-Forwarded-For;
-    real_ip_recursive on;
-
-    log_format detailed '$remote_addr - [$time_local] "$request" '
-                        '$status $body_bytes_sent "$http_referer" '
-                        '"$http_user_agent" "XFF: $http_x_forwarded_for"';
-    
-    access_log /var/log/nginx/access.log detailed;
-    
     # DNS resolver
     resolver 1.1.1.1 1.0.0.1 valid=1s ipv6=off;
     resolver_timeout 5s;
-    
-    # Определяем список разрешенных IP на основе РЕАЛЬНОГО IP
-    geo $realip_remote_addr $allowed_ip {
-        default 1;
-
-        # Блокируем localhost и локальные сети
-        127.0.0.0/8 0;
-        10.0.0.0/8 0;
-        172.16.0.0/12 0;
-        192.168.0.0/16 0;
-
-        # Блокируем конкретный IP
-        94.45.147.5 0;
-    }
     
     server {
         listen ${PORT};
