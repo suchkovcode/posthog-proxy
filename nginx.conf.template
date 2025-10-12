@@ -19,15 +19,15 @@ http {
     resolver_timeout 5s;
     
     # Определяем список разрешенных IP на основе РЕАЛЬНОГО IP
-    geo $real_ip $allowed_ip {
+    geo $realip_remote_addr $allowed_ip {
         default 1;
-        
+
         # Блокируем localhost и локальные сети
         127.0.0.0/8 0;
         10.0.0.0/8 0;
         172.16.0.0/12 0;
         192.168.0.0/16 0;
-        
+
         # Блокируем конкретный IP
         94.45.147.5 0;
     }
