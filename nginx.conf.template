@@ -7,9 +7,28 @@ http {
     resolver 1.1.1.1 1.0.0.1 valid=1s ipv6=off;
     resolver_timeout 5s;
     
+    # Определяем список разрешенных IP
+    geo $allowed_ip {
+        default 1;
+        
+        # Блокируем localhost и локальные сети
+        127.0.0.0/8 0;
+        10.0.0.0/8 0;
+        172.16.0.0/12 0;
+        192.168.0.0/16 0;
+        
+        # Блокируем конкретный IP
+        94.45.147.5 0;
+    }
+    
     server {
         listen ${PORT};
         server_name ${SERVER_NAME};
+        
+        # Проверка IP для всех location кроме health
+        if ($allowed_ip = 0) {
+            return 403;
+        }
         
         # Health check endpoint
         location = /health {
@@ -19,10 +38,12 @@ http {
             return 200 'OK';
         }
         
-        # Static assets - from us-assets.i.posthog.com
+        # Static assets
         location /static {
-            proxy_pass https://${POSTHOG_CLOUD_REGION}-assets.i.posthog.com;
-            proxy_set_header Host "${POSTHOG_CLOUD_REGION}-assets.i.posthog.com";
+            # Используем переменную для force IPv4 resolution
+            set $backend "${POSTHOG_CLOUD_REGION}-assets.i.posthog.com";
+            proxy_pass https://$backend;
+            proxy_set_header Host $backend;
             proxy_ssl_server_name on;
             
             # Таймауты
@@ -30,7 +51,7 @@ http {
             proxy_send_timeout 30s;
             proxy_read_timeout 30s;
             
-            # Remove upstream CORS headers to prevent duplicates
+            # Remove upstream CORS headers
             proxy_hide_header 'Access-Control-Allow-Origin';
             proxy_hide_header 'Access-Control-Allow-Methods';
             proxy_hide_header 'Access-Control-Allow-Headers';
@@ -45,11 +66,13 @@ http {
         
         # Main API endpoints
         location / {
-            proxy_pass https://${POSTHOG_CLOUD_REGION}.i.posthog.com;
-            proxy_set_header Host "${POSTHOG_CLOUD_REGION}.i.posthog.com";
+            # Используем переменную для force IPv4 resolution
+            set $backend "${POSTHOG_CLOUD_REGION}.i.posthog.com";
+            proxy_pass https://$backend;
+            proxy_set_header Host $backend;
             proxy_ssl_server_name on;
             
-            # Proxy headers для правильной передачи клиентской информации
+            # Proxy headers
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
@@ -59,7 +82,7 @@ http {
             proxy_send_timeout 30s;
             proxy_read_timeout 30s;
             
-            # Remove upstream CORS headers to prevent duplicates
+            # Remove upstream CORS headers
             proxy_hide_header 'Access-Control-Allow-Origin';
             proxy_hide_header 'Access-Control-Allow-Methods';
             proxy_hide_header 'Access-Control-Allow-Headers';
